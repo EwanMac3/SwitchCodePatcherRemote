@@ -254,10 +254,10 @@ public class Main {
                     //place a breakpoint at the scene loader (when AC is called)
                     if (!splat3) sendToGdb("hbreak *(0x197F7EC + " + baseOffset + ")");
                     else {
-                        setLabel("Splatoon 3 anticheat safety isn't ready yet :( Have fun");
+                        setLabel("Splatoon 3 scene loader not impl. yet");
                     }
                     sendToGdb("c");
-                    filePath = "/home/ewan/Desktop/cheats" + (splat3 ? "Thunder" : "Blitz") + ".json";
+                    filePath = "cheats" + (splat3 ? "Thunder" : "Blitz") + ".json";
                     load();
                     for (String name : codePatches.keySet()) {
                         fillCheatsBtns(name);
