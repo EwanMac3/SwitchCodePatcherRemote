@@ -72,7 +72,11 @@ public class ConsoleManager {
                     gotBaseOffset = true;
                     //place a breakpoint at the scene loader (when AC is called)
                     if (!splat3) sendToGdb("hbreak *(0x197F7EC + " + baseOffset + ")");
-                    else sendToGdb("hbreak *(0x04077854 + " + baseOffset + ")");
+                    else {
+                        sendToGdb("hbreak *(0x04077854 + " + baseOffset + ")");
+                        Thread.sleep(80);
+                        sendToGdb("hbreak *(0x02F23688 + " + baseOffset + ")");
+                    }
                     Thread.sleep(20);
                     sendToGdb("c");
                     SaveManage.filePath = "cheats" + (splat3 ? "Thunder" : "Blitz") + ".json";
@@ -90,47 +94,12 @@ public class ConsoleManager {
                     continue;
                 }
                 if (readLine.contains(" hit Breakpoint 1,")) {
-                    new Thread(() -> {
-                        try {
-                            Thread.sleep(1000);
-                        } catch (InterruptedException e) {
-                            throw new RuntimeException(e);
-                        }
-                        Main.setLabel("Scene changed, " + (Main.autoOffCheats ? "patches disabled." : "PATCHES WERE NOT DISABLED"));
-                    }).start();
-                    new Thread(() -> {
-                        loading = true;
-                        if (Main.autoOffCheats) for (String cheats : Main.codePatches.keySet()) {
-                            if (Main.modState.containsKey(cheats) && Main.modState.get(cheats)) {
-                                try {
-                                    patchCode(cheats, false);
-                                    Main.cheatBtns.get(cheats).setText("<html><u>OFF - </u>" + cheats + "</html>");
-                                    Main.cheatsWereOn.add(cheats);
-                                } catch (IOException e) {
-                                    throw new RuntimeException(e);
-                                }
-                                while (Main.patching) {
-                                    try {
-                                        Thread.sleep(10);
-                                    } catch (InterruptedException e) {
-                                        throw new RuntimeException(e);
-                                    }
-                                }
-                            }
-
-                        }
-                        loading = false;
-                        try {
-                            Thread.sleep(150);
-                        } catch (InterruptedException e) {
-                            throw new RuntimeException(e);
-                        }
-                        try {
-                            sendToGdb("c");
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
-                    }).start();
+                    gameLoading();
+                    continue;
+                }
+                if (readLine.contains(" hit Breakpoint 2,")) {
+                    gameLoading();
+                    Main.setLabel("Match is starting!!");
                     continue;
                 }
                 if (readLine.endsWith("received signal SIGINT, Interrupt.")) {
@@ -149,6 +118,50 @@ public class ConsoleManager {
             }
 
         }
+    }
+
+    static void gameLoading() {
+        new Thread(() -> {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            Main.setLabel("Scene changed, " + (Main.autoOffCheats ? "patches disabled." : "PATCHES WERE NOT DISABLED"));
+        }).start();
+        new Thread(() -> {
+            loading = true;
+            if (Main.autoOffCheats) for (String cheats : Main.codePatches.keySet()) {
+                if (Main.modState.containsKey(cheats) && Main.modState.get(cheats)) {
+                    try {
+                        patchCode(cheats, false);
+                        Main.cheatBtns.get(cheats).setText("<html><u>OFF - </u>" + cheats + "</html>");
+                        Main.cheatsWereOn.add(cheats);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                    while (Main.patching) {
+                        try {
+                            Thread.sleep(10);
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                }
+
+            }
+            loading = false;
+            try {
+                Thread.sleep(150);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            try {
+                sendToGdb("c");
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }).start();
     }
 
     static String reverseHex(String originalHex) {
