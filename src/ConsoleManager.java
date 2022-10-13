@@ -72,9 +72,8 @@ public class ConsoleManager {
                     gotBaseOffset = true;
                     //place a breakpoint at the scene loader (when AC is called)
                     if (!splat3) sendToGdb("hbreak *(0x197F7EC + " + baseOffset + ")");
-                    else {
-                        Main.setLabel("Splatoon 3 scene loader not impl. yet");
-                    }
+                    else sendToGdb("hbreak *(0x04077854 + " + baseOffset + ")");
+                    Thread.sleep(20);
                     sendToGdb("c");
                     SaveManage.filePath = "cheats" + (splat3 ? "Thunder" : "Blitz") + ".json";
                     SaveManage.load();
@@ -90,7 +89,7 @@ public class ConsoleManager {
                     waitingForCodeRead = false;
                     continue;
                 }
-                if (readLine.contains("Thread 1 \"Thread_0x0000000000\" hit Breakpoint 1,")) {
+                if (readLine.contains(" hit Breakpoint 1,")) {
                     new Thread(() -> {
                         try {
                             Thread.sleep(1000);
@@ -99,40 +98,37 @@ public class ConsoleManager {
                         }
                         Main.setLabel("Scene changed, " + (Main.autoOffCheats ? "patches disabled." : "PATCHES WERE NOT DISABLED"));
                     }).start();
-                    new Thread(new Runnable() {
-                        @Override
-                        public void run() {
-                            loading = true;
-                            if (Main.autoOffCheats) for (String cheats : Main.codePatches.keySet()) {
-                                if (Main.modState.containsKey(cheats) && Main.modState.get(cheats)) {
+                    new Thread(() -> {
+                        loading = true;
+                        if (Main.autoOffCheats) for (String cheats : Main.codePatches.keySet()) {
+                            if (Main.modState.containsKey(cheats) && Main.modState.get(cheats)) {
+                                try {
+                                    patchCode(cheats, false);
+                                    Main.cheatBtns.get(cheats).setText("<html><u>OFF - </u>" + cheats + "</html>");
+                                    Main.cheatsWereOn.add(cheats);
+                                } catch (IOException e) {
+                                    throw new RuntimeException(e);
+                                }
+                                while (Main.patching) {
                                     try {
-                                        patchCode(cheats, false);
-                                        Main.cheatBtns.get(cheats).setText("<html><u>OFF - </u>" + cheats + "</html>");
-                                        Main.cheatsWereOn.add(cheats);
-                                    } catch (IOException e) {
+                                        Thread.sleep(10);
+                                    } catch (InterruptedException e) {
                                         throw new RuntimeException(e);
                                     }
-                                    while (Main.patching) {
-                                        try {
-                                            Thread.sleep(10);
-                                        } catch (InterruptedException e) {
-                                            throw new RuntimeException(e);
-                                        }
-                                    }
                                 }
+                            }
 
-                            }
-                            loading = false;
-                            try {
-                                Thread.sleep(150);
-                            } catch (InterruptedException e) {
-                                throw new RuntimeException(e);
-                            }
-                            try {
-                                sendToGdb("c");
-                            } catch (IOException e) {
-                                throw new RuntimeException(e);
-                            }
+                        }
+                        loading = false;
+                        try {
+                            Thread.sleep(150);
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                        try {
+                            sendToGdb("c");
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
                         }
                     }).start();
                     continue;

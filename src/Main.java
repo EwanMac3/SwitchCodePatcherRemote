@@ -27,7 +27,7 @@ public class Main {
         cheatBtns.put(cheatName, cheatToggle);
         cheatToggle.addActionListener(actionEvent1 -> {
             boolean status = cheatToggle.getText().startsWith("<html><u>OFF - </u>");
-            cheatToggle.setText(status ? "<html><u>ON - </u>" + cheatName + "</html>" : "<html><u>OFF - </u>" + cheatName + "</html>");
+            cheatToggle.setText(status ? "<html><u>ON - " + cheatName + "</html>" : "<html><u>OFF - </u>" + cheatName + "</html>");
             cheatsWereOn.remove(cheatName);
             try {
                 ConsoleManager.patchCode(cheatName, status);
