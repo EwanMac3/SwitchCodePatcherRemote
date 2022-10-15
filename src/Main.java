@@ -1,8 +1,12 @@
+import com.formdev.flatlaf.FlatDarculaLaf;
+
 import javax.swing.*;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.List;
 import java.util.*;
 
 public class Main {
@@ -15,23 +19,81 @@ public class Main {
     static Map<String, Boolean> modState;
     static JFrame frame;
     static boolean nxConnected;
-    static int btnBound = 60;
+    static JTextArea codeText;
+    static String selectedCheat;
     static JTextArea statusLabel;
-    static Map<String, JButton> cheatBtns;
+    static SpringLayout layout;
+    static Map<String, Box> cheatBtns;
     static Set<String> cheatsWereOn;
     static boolean autoOffCheats;
-
+    static Box cheatsBox;
+    static Map<String, String> cheatsRawText;
 
     static void fillCheatsBtns(String cheatName) {
-        JButton cheatToggle = new JButton("<html><u>OFF - </u>" + cheatName + "</html>");
-        cheatBtns.put(cheatName, cheatToggle);
+        Box cheatBox = Box.createHorizontalBox();
+        JButton cheatToggle = new JButton("<html><b>✗ <u>OFF</b></u></html>");
+        cheatToggle.setMaximumSize(new Dimension(90, 50));
+        cheatToggle.setPreferredSize(new Dimension(90, 50));
+        cheatToggle.setMinimumSize(new Dimension(90, 50));
+        JButton cheatLabel = new JButton(cheatName);
+        cheatLabel.setMaximumSize(new Dimension(410, 50));
+        cheatLabel.setPreferredSize(new Dimension(410, 50));
+        cheatLabel.setMinimumSize(new Dimension(410, 50));
+        cheatBox.add(cheatLabel);
+        cheatBox.add(cheatToggle);
+        cheatBtns.put(cheatName, cheatBox);
+        cheatLabel.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                selectedCheat = cheatName;
+                if (!codePatches.containsKey(selectedCheat)) {
+                    codeText.setText("//replace this with patch code");
+                    codeText.repaint();
+                    return;
+                }
+                if (cheatsRawText.containsKey(cheatName)) {
+                    codeText.setText(cheatsRawText.get(cheatName));
+                } else {
+                    String newCheat = "";
+                    List<String[]> cheat = codePatches.get(selectedCheat);
+                    long lastLine = -999999;
+                    for (String[] line : cheat) {
+                        while (line[0].length() < 8) {
+                            line[0] = "0" + line[0];
+                        }
+                        while (line[1].length() < 8) {
+                            line[1] = "0" + line[1];
+                        }
+                        long curOff = Long.parseLong(line[0], 16);
+                        if (curOff == lastLine + 4) {
+                            newCheat = newCheat.substring(0, newCheat.length() - 1);
+                            newCheat += line[1] + "\n";
+                        } else {
+                            newCheat += line[0] + " " + line[1] + "\n";
+                        }
+                        lastLine = curOff;
+                    }
+                    codeText.setText(newCheat.trim());
+                    cheatsRawText.put(cheatName, newCheat);
+                }
+                codeText.setText(codeText.getText().toUpperCase());
+                codeText.repaint();
+            }
+        });
+        cheatLabel.setHorizontalAlignment(SwingConstants.LEFT);
         cheatToggle.addActionListener(actionEvent1 -> {
-            boolean status = cheatToggle.getText().startsWith("<html><u>OFF - </u>");
-            cheatToggle.setText(status ? "<html><u>ON - " + cheatName + "</html>" : "<html><u>OFF - </u>" + cheatName + "</html>");
+            if (patching) return;
+            if (!codePatches.containsKey(cheatName)) {
+                JOptionPane.showMessageDialog(null, "Patch does not exist. Did you save it?");
+                return;
+            }
+            boolean status = cheatToggle.getText().contains("✗");
+            cheatToggle.setText(status ? "<html><b>✓ <u>ON</b></u></html>" : "<html><b>✗ <u>OFF</b></u></html>");
             cheatsWereOn.remove(cheatName);
             try {
                 ConsoleManager.patchCode(cheatName, status);
                 while (patching) {
+                    //noinspection BusyWait
                     Thread.sleep(10);
                 }
                 ConsoleManager.sendToGdb("c");
@@ -39,100 +101,151 @@ public class Main {
                 throw new RuntimeException(e);
             }
         });
-        cheatToggle.setBounds(10, btnBound, 400, 40);
-        btnBound += 50;
-        frame.add(cheatToggle);
-        frame.invalidate();
-        frame.repaint();
+        cheatsBox.add(cheatBox);
+        cheatsBox.repaint();
     }
 
-    public static void main(String[] args) throws IOException, InterruptedException {
-        frame = new JFrame();
-        JButton connectToConsole = new JButton("Connect");
+
+    public static void main(String[] args) throws InterruptedException {
+        FlatDarculaLaf.setup();
+        layout = new SpringLayout();
+        frame = new JFrame("Switch Code Patcher Remote - Release Build 3");
+        JButton connectToConsole = new JButton("Connect to console");
+        frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        frame.setLayout(layout);
         autoOffCheats = true;
         cheatsWereOn = new HashSet<>();
         modState = new HashMap<>();
         cheatBtns = new HashMap<>();
-        connectToConsole.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent actionEvent) {
-                consoleIP = JOptionPane.showInputDialog("Enter console IP address");
+        cheatsRawText = new HashMap<>();
+        connectToConsole.addActionListener(actionEvent -> {
+            consoleIP = JOptionPane.showInputDialog("Enter console IP address");
 
-                new Thread(() -> {
-                    try {
-                        ConsoleManager.startLooper();
-                    } catch (IOException | InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
-                }).start();
-            }
+            new Thread(() -> {
+                try {
+                    ConsoleManager.startLooper();
+                } catch (IOException | InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }).start();
         });
-        connectToConsole.setBounds(10, 10, 100, 40);
-        frame.add(connectToConsole);
+        connectToConsole.setPreferredSize(new Dimension(200, 50));
+        Container pane = frame.getContentPane();
+        layout.putConstraint(SpringLayout.NORTH, connectToConsole, 0, SpringLayout.NORTH, pane);
+        layout.putConstraint(SpringLayout.WEST, connectToConsole, 0, SpringLayout.WEST, pane);
+        pane.add(connectToConsole);
         statusLabel = new JTextArea("Status: Idle");
-        statusLabel.setBounds(410, 60, 1000, 2000);
+        statusLabel.setLineWrap(true);
+        statusLabel.setEditable(false);
         frame.add(statusLabel);
-        JButton autoOff = new JButton("Patches OFF on load?");
-        autoOff.setBounds(410, 10, 200, 40);
+        JButton autoOff = new JButton("Scene Load → Patch OFF");
+        autoOff.setPreferredSize(new Dimension(200, 50));
+        layout.putConstraint(SpringLayout.NORTH, autoOff, 0, SpringLayout.NORTH, pane);
+        layout.putConstraint(SpringLayout.EAST, autoOff, 0, SpringLayout.EAST, pane);
+
+        layout.putConstraint(SpringLayout.NORTH, statusLabel, 0, SpringLayout.SOUTH, autoOff);
+        layout.putConstraint(SpringLayout.WEST, statusLabel, -200, SpringLayout.EAST, pane);
+        layout.putConstraint(SpringLayout.EAST, statusLabel, 0, SpringLayout.EAST, pane);
+        layout.putConstraint(SpringLayout.SOUTH, statusLabel, 0, SpringLayout.SOUTH, pane);
+
         autoOff.addActionListener(actionEvent -> {
             autoOffCheats = !autoOffCheats;
-            setLabel(autoOffCheats ? "Patches will be turned OFF when scene changes" : "PATCHES WILL NOT BE TURNED OFF WHEN SCENE CHANGES.\nTURN THIS ON AGAIN BEFORE PLAYING W/ OTHER CONSOLES");
+            setLabel(autoOffCheats ? "------\nPatches will turn OFF when scene changes or battle starts.\n------" : "!-!-!-!-!\nPatches will stay on even when scene changes and battle starts. (Are you sure?)\n!-!-!-!-!");
         });
-        frame.setSize(600, 800);
+        frame.setSize(1200, 700);
         frame.add(autoOff);
-        frame.setLayout(null);
         frame.setVisible(true);
 
         while (!nxConnected) {
+            //noinspection BusyWait
             Thread.sleep(20);
         }
         JButton addCheat = new JButton("Add patch");
         JButton deleteCheat = new JButton("Remove patch");
 
         addCheat.addActionListener(actionEvent -> {
-            String cheatname = JOptionPane.showInputDialog("What is the name of the patch? (eg. infinite ink, force ready, etc)");
-            int uniqueOffsets = Integer.parseInt(JOptionPane.showInputDialog("How many pchtxt lines are there?"));
-            List<String[]> newCheat = new ArrayList<>();
-            for (int i = 0; i < uniqueOffsets; i++) {
-                String cheatIn = JOptionPane.showInputDialog("Enter patch data (1 line at a time)\nEx. 023a4ff5 2000805215000014");
-                String cheatOffset = cheatIn.substring(0, 8);
-                String cheatVal = cheatIn.substring(9);
-                for (int j = 0; j < cheatVal.length(); j += 8) {
-                    int calcOff = Integer.parseUnsignedInt(cheatOffset, 16) + (j / 2);
-                    String val = cheatVal.substring(j, j + 8);
-                    String offHexStr = Integer.toHexString(calcOff);
-                    newCheat.add(new String[]{offHexStr, val});
-                }
-            }
-            codePatches.put(cheatname, newCheat);
-            SaveManage.save();
-            fillCheatsBtns(cheatname);
+            String cheatName = JOptionPane.showInputDialog("What is the name of the patch? (eg. infinite ink, force ready, etc)");
+            setLabel("Added. Enter the code and save it.");
+            selectedCheat = cheatName;
+            codeText.setText("//replace this with patch code");
+            fillCheatsBtns(cheatName);
         });
-        deleteCheat.addActionListener(actionEvent -> {
-            String[] names = codePatches.keySet().toArray(new String[0]);
-            String name = (String) JOptionPane.showInputDialog(null, "What patch do you want to delete? (It will be disabled, too)", "Delete", JOptionPane.QUESTION_MESSAGE, null, names, null);
-            if (name != null) {
-                try {
-                    ConsoleManager.patchCode(name, false);
-                    codePatches.remove(name);
-                    frame.remove(cheatBtns.get(name));
-                    cheatBtns.remove(name);
-                    cheatsWereOn.remove(name);
-                    ConsoleManager.sendToGdb("c");
-                    SaveManage.save();
-                    frame.invalidate();
-                    frame.repaint();
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        });
-        addCheat.setBounds(10, 10, 200, 40);
-        deleteCheat.setBounds(210, 10, 200, 40);
+        layout.putConstraint(SpringLayout.NORTH, addCheat, 0, SpringLayout.NORTH, connectToConsole);
+        layout.putConstraint(SpringLayout.EAST, addCheat, 0, SpringLayout.EAST, connectToConsole);
+        layout.putConstraint(SpringLayout.SOUTH, addCheat, 0, SpringLayout.SOUTH, connectToConsole);
+        layout.putConstraint(SpringLayout.WEST, addCheat, 0, SpringLayout.WEST, connectToConsole);
+        layout.putConstraint(SpringLayout.NORTH, deleteCheat, 0, SpringLayout.NORTH, addCheat);
+        layout.putConstraint(SpringLayout.WEST, deleteCheat, 0, SpringLayout.EAST, addCheat);
+        layout.putConstraint(SpringLayout.SOUTH, deleteCheat, 0, SpringLayout.SOUTH, addCheat);
+
         frame.remove(connectToConsole);
         frame.add(addCheat);
         frame.add(deleteCheat);
+        cheatsBox = Box.createVerticalBox();
+        JScrollPane cheatListPane = new JScrollPane(cheatsBox);
+        cheatListPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+        layout.putConstraint(SpringLayout.NORTH, cheatListPane, 0, SpringLayout.SOUTH, addCheat);
+        layout.putConstraint(SpringLayout.SOUTH, cheatListPane, 0, SpringLayout.SOUTH, pane);
+        layout.putConstraint(SpringLayout.EAST, cheatListPane, 520, SpringLayout.WEST, pane);
+        layout.putConstraint(SpringLayout.WEST, cheatListPane, 0, SpringLayout.WEST, pane);
+        pane.add(cheatListPane);
 
+        codeText = new JTextArea("Select a patch!");
+        codeText.setLineWrap(false);
+
+        layout.putConstraint(SpringLayout.NORTH, codeText, 0, SpringLayout.NORTH, cheatListPane);
+        layout.putConstraint(SpringLayout.SOUTH, codeText, 0, SpringLayout.SOUTH, statusLabel);
+        layout.putConstraint(SpringLayout.WEST, codeText, 0, SpringLayout.EAST, cheatListPane);
+        layout.putConstraint(SpringLayout.EAST, codeText, 0, SpringLayout.WEST, statusLabel);
+        pane.add(codeText);
+
+        JButton saveEdit = new JButton("Save current patch");
+        saveEdit.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (selectedCheat == null) {
+                    JOptionPane.showMessageDialog(null, "Select a patch first!");
+                    return;
+                }
+                if (processText()) {
+                    JOptionPane.showMessageDialog(null, "Saved patch " + selectedCheat);
+                } else {
+                    JOptionPane.showMessageDialog(null, "Could not save patch! Check log...");
+                }
+            }
+        });
+        layout.putConstraint(SpringLayout.NORTH, saveEdit, 0, SpringLayout.NORTH, deleteCheat);
+        layout.putConstraint(SpringLayout.SOUTH, saveEdit, 0, SpringLayout.SOUTH, deleteCheat);
+        layout.putConstraint(SpringLayout.WEST, saveEdit, 0, SpringLayout.EAST, deleteCheat);
+        pane.add(saveEdit);
+
+
+        deleteCheat.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (selectedCheat == null) {
+                    JOptionPane.showMessageDialog(null, "Select a patch and try again");
+                    return;
+                }
+                if (JOptionPane.showConfirmDialog(frame, "Delete patch " + selectedCheat + "? It will be disabled.", "Delete Patch", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE) == JOptionPane.YES_OPTION) {
+                    try {
+                        ConsoleManager.patchCode(selectedCheat, false);
+                        while (patching) {
+                            Thread.sleep(10);
+                        }
+                        codePatches.remove(selectedCheat);
+                        cheatsBox.remove(cheatBtns.get(selectedCheat));
+                        cheatBtns.remove(selectedCheat);
+                        selectedCheat = null;
+                        codeText.setText("Select a patch!");
+                        ConsoleManager.sendToGdb("c");
+                        SaveManage.save();
+                    } catch (Exception ex) {
+                        setLabel("Shit hit the fan!!");
+                    }
+                }
+            }
+        });
     }
 
     static void setLabel(String s) {
@@ -141,5 +254,42 @@ public class Main {
         statusLabel.setText(log);
         frame.invalidate();
         frame.repaint();
+    }
+
+    static boolean processText() {
+        String cheatInAll = codeText.getText().trim();
+        String[] cheatSplit = cheatInAll.split("\n");
+        for (String line : cheatSplit) {
+            line = line.trim();
+            if (line.length() < 17) {
+                setLabel("Line missing bytes");
+                return false;
+            }
+            if (line.charAt(8) != ' ') {
+                setLabel("No space after offset");
+                return false;
+            }
+            String code = line.substring(9);
+            if (code.length() % 8 != 0) {
+                setLabel("Code not made up of 4 byte intervals");
+                return false;
+            }
+        }
+        List<String[]> newCheat = new ArrayList<>();
+        for (int i = 0; i < cheatSplit.length; i++) {
+            if (cheatSplit[i].trim().isEmpty()) continue;
+            String cheatIn = cheatSplit[i];
+            String cheatOffset = cheatIn.substring(0, 8);
+            String cheatVal = cheatIn.substring(9);
+            for (int j = 0; j < cheatVal.length(); j += 8) {
+                int calcOff = Integer.parseUnsignedInt(cheatOffset, 16) + (j / 2);
+                String val = cheatVal.substring(j, j + 8);
+                String offHexStr = Integer.toHexString(calcOff);
+                newCheat.add(new String[]{offHexStr, val});
+            }
+        }
+        codePatches.put(selectedCheat, newCheat);
+        SaveManage.save();
+        return true;
     }
 }

@@ -1,4 +1,5 @@
 import javax.swing.*;
+import java.awt.*;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -69,6 +70,7 @@ public class ConsoleManager {
                     baseOffset = readLine.substring(0, 12);
                     baseOffset = baseOffset.trim();
                     Main.setLabel("Found Splatoon " + (splat3 ? "3" : "2") + " code base");
+
                     gotBaseOffset = true;
                     //place a breakpoint at the scene loader (when AC is called)
                     if (!splat3) sendToGdb("hbreak *(0x197F7EC + " + baseOffset + ")");
@@ -135,7 +137,7 @@ public class ConsoleManager {
                 if (Main.modState.containsKey(cheats) && Main.modState.get(cheats)) {
                     try {
                         patchCode(cheats, false);
-                        Main.cheatBtns.get(cheats).setText("<html><u>OFF - </u>" + cheats + "</html>");
+                        //Main.cheatBtns.get(cheats).getComponent(0).setText("<html><u>OFF - </u>" + cheats + "</html>");
                         Main.cheatsWereOn.add(cheats);
                     } catch (IOException e) {
                         throw new RuntimeException(e);
@@ -212,6 +214,7 @@ public class ConsoleManager {
                         gameReady = false;
                     }
                     List<String[]> cheat = Main.codePatches.get(cheatName);
+                   // System.out.println("cheatname "+cheatName);
                     for (String[] line : cheat) {
                         //check if we made a copy of the original code for anticheat
                         if (!originalCode.containsKey(line[0])) {
