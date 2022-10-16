@@ -204,12 +204,12 @@ public class ConsoleManager {
     }
 
     static void patchCode(String cheatName, boolean modGame) throws IOException {
-
+        Main.patching = true;
         new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
-                    Main.patching = true;
+
                     //just in case we're waiting on another op
                     while (codePatchQueue) {
                         Thread.sleep(20);

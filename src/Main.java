@@ -94,13 +94,13 @@ public class Main {
                 while (patching) {
                     //noinspection BusyWait
                     //wait for ongoing shit to finish
-                    Thread.sleep(10);
+                    Thread.sleep(50);
                 }
                 ConsoleManager.patchCode(cheatName, status);
                 while (patching) {
                     //noinspection BusyWait
                     //wait for ongoing shit to finish, then unpause
-                    Thread.sleep(10);
+                    Thread.sleep(50);
                 }
                 ConsoleManager.sendToGdb("c");
             } catch (IOException | InterruptedException e) {
@@ -252,7 +252,7 @@ public class Main {
                         SaveManage.save();
                         cheatListPane.repaint();
                     } catch (Exception ex) {
-                        setLabel("Shit hit the fan!!");
+                        //die
                     }
                 }
             }
