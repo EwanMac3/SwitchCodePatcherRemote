@@ -6,8 +6,10 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.*;
+import java.util.Map;
 
 public class Main {
     public static String consoleIP;
@@ -24,7 +26,6 @@ public class Main {
     static JTextArea statusLabel;
     static SpringLayout layout;
     static Map<String, Box> cheatBtns;
-    static Set<String> cheatsWereOn;
     static boolean autoOffCheats;
     static Box cheatsBox;
     static Map<String, String> cheatsRawText;
@@ -89,7 +90,6 @@ public class Main {
             }
             boolean status = cheatToggle.getText().contains("✗");
             cheatToggle.setText(status ? "<html><b>✓ <u>ON</b></u></html>" : "<html><b>✗ <u>OFF</b></u></html>");
-            cheatsWereOn.remove(cheatName);
             try {
                 ConsoleManager.patchCode(cheatName, status);
                 while (patching) {
@@ -114,7 +114,6 @@ public class Main {
         frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         frame.setLayout(layout);
         autoOffCheats = true;
-        cheatsWereOn = new HashSet<>();
         modState = new HashMap<>();
         cheatBtns = new HashMap<>();
         cheatsRawText = new HashMap<>();
@@ -150,7 +149,10 @@ public class Main {
 
         autoOff.addActionListener(actionEvent -> {
             autoOffCheats = !autoOffCheats;
-            setLabel(autoOffCheats ? "------\nPatches will turn OFF when scene changes or battle starts.\n------" : "!-!-!-!-!\nPatches will stay on even when scene changes and battle starts. (Are you sure?)\n!-!-!-!-!");
+            if (!ConsoleManager.notSplatoon)
+                setLabel(autoOffCheats ? "------\nPatches will turn OFF when scene changes or battle starts.\n------" : "!-!-!-!-!\nPatches will stay on even when scene changes and battle starts. (Are you sure?)\n!-!-!-!-!");
+            else
+                JOptionPane.showMessageDialog(null, "This is not Splatoon 2 or Splatoon 3, so this button does nothing.");
         });
         frame.setSize(1200, 700);
         frame.add(autoOff);
@@ -229,16 +231,18 @@ public class Main {
                 }
                 if (JOptionPane.showConfirmDialog(frame, "Delete patch " + selectedCheat + "? It will be disabled.", "Delete Patch", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE) == JOptionPane.YES_OPTION) {
                     try {
-                        ConsoleManager.patchCode(selectedCheat, false);
-                        while (patching) {
-                            Thread.sleep(10);
+                        if (Main.modState.containsKey(selectedCheat) && Main.modState.get(selectedCheat)) {
+                            ConsoleManager.patchCode(selectedCheat, false);
+                            while (patching) {
+                                Thread.sleep(10);
+                            }
+                            ConsoleManager.sendToGdb("c");
                         }
                         codePatches.remove(selectedCheat);
                         cheatsBox.remove(cheatBtns.get(selectedCheat));
                         cheatBtns.remove(selectedCheat);
                         selectedCheat = null;
                         codeText.setText("Select a patch!");
-                        ConsoleManager.sendToGdb("c");
                         SaveManage.save();
                     } catch (Exception ex) {
                         setLabel("Shit hit the fan!!");

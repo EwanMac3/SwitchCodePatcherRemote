@@ -1,5 +1,4 @@
 import javax.swing.*;
-import java.awt.*;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -16,12 +15,13 @@ public class ConsoleManager {
     static boolean codePatchQueue;
     static boolean loading;
     static boolean gameReady;
+    static boolean notSplatoon;
 
     static void startLooper() throws IOException, InterruptedException {
         ProcessBuilder processBuilder = new ProcessBuilder("gdb-multiarch");
         Main.setLabel("Connecting to console");
         processBuilder.redirectErrorStream(true);
-
+        notSplatoon = true;
         Process process = processBuilder.start();
         Main.gdb = process.getOutputStream();
         Main.pid = String.valueOf(process.pid());
@@ -64,30 +64,38 @@ public class ConsoleManager {
                     sendToGdb("mon get info");
                     continue;
                 }
-                if (gameAttached && !gotBaseOffset && readLine.endsWith(" Blitz.nss") || readLine.endsWith(" Thunder.nss")) {
-                    boolean splat3 = readLine.endsWith(" Thunder.nss");
+                if (gameAttached && !gotBaseOffset && readLine.endsWith(".nss")) {
                     //get base of game and store it
                     baseOffset = readLine.substring(0, 12);
                     baseOffset = baseOffset.trim();
-                    Main.setLabel("Found Splatoon " + (splat3 ? "3" : "2") + " code base");
-
                     gotBaseOffset = true;
-                    //place a breakpoint at the scene loader (when AC is called)
-                    if (!splat3) sendToGdb("hbreak *(0x197F7EC + " + baseOffset + ")");
-                    else {
-                        sendToGdb("hbreak *(0x04077854 + " + baseOffset + ")");
-                        Thread.sleep(80);
-                        sendToGdb("hbreak *(0x02F23688 + " + baseOffset + ")");
+                    if (readLine.endsWith(" Blitz.nss") || readLine.endsWith(" Thunder.nss")) {
+                        notSplatoon = false;
+                        boolean splat3 = readLine.endsWith(" Thunder.nss");
+                        Main.setLabel("Found Splatoon " + (splat3 ? "3" : "2") + " code base");
+                        //place a breakpoint at the scene loader (when AC is called)
+                        if (!splat3) sendToGdb("hbreak *(0x197F7EC + " + baseOffset + ")");
+                        else {
+                            sendToGdb("hbreak *(0x04077854 + " + baseOffset + ")");
+                            Thread.sleep(80);
+                            sendToGdb("hbreak *(0x02F23688 + " + baseOffset + ")");
+                        }
+                        SaveManage.filePath = "cheats" + (splat3 ? "Thunder" : "Blitz") + ".json";
+
+                    } else {
+                        String codeName = readLine.substring(28);
+                        codeName = codeName.substring(0, codeName.length() - 4);
+                        Main.setLabel("Found other game with codename " + codeName);
+                        SaveManage.filePath = "cheats" + codeName + ".json";
                     }
-                    Thread.sleep(20);
-                    sendToGdb("c");
-                    SaveManage.filePath = "cheats" + (splat3 ? "Thunder" : "Blitz") + ".json";
                     SaveManage.load();
                     for (String name : Main.codePatches.keySet()) {
                         Main.fillCheatsBtns(name);
                     }
                     Main.frame.invalidate();
                     Main.frame.repaint();
+                    Thread.sleep(20);
+                    sendToGdb("c");
                     continue;
                 }
                 if (waitingForCodeRead && readLine.contains(":\t")) {
@@ -137,8 +145,7 @@ public class ConsoleManager {
                 if (Main.modState.containsKey(cheats) && Main.modState.get(cheats)) {
                     try {
                         patchCode(cheats, false);
-                        //Main.cheatBtns.get(cheats).getComponent(0).setText("<html><u>OFF - </u>" + cheats + "</html>");
-                        Main.cheatsWereOn.add(cheats);
+                        ((JButton)(Main.cheatBtns.get(cheats).getComponent(1))).setText("<html><b>✗ <u>OFF</b></u></html>");
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -214,7 +221,7 @@ public class ConsoleManager {
                         gameReady = false;
                     }
                     List<String[]> cheat = Main.codePatches.get(cheatName);
-                   // System.out.println("cheatname "+cheatName);
+                    // System.out.println("cheatname "+cheatName);
                     for (String[] line : cheat) {
                         //check if we made a copy of the original code for anticheat
                         if (!originalCode.containsKey(line[0])) {
