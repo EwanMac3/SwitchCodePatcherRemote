@@ -145,7 +145,7 @@ public class ConsoleManager {
                 if (Main.modState.containsKey(cheats) && Main.modState.get(cheats)) {
                     try {
                         patchCode(cheats, false);
-                        ((JButton)(Main.cheatBtns.get(cheats).getComponent(1))).setText("<html><b>✗ <u>OFF</b></u></html>");
+                        ((JButton) (Main.cheatBtns.get(cheats).getComponent(1))).setText("<html><b>✗ <u>OFF</b></u></html>");
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -204,11 +204,12 @@ public class ConsoleManager {
     }
 
     static void patchCode(String cheatName, boolean modGame) throws IOException {
-        Main.patching = true;
+
         new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
+                    Main.patching = true;
                     //just in case we're waiting on another op
                     while (codePatchQueue) {
                         Thread.sleep(20);

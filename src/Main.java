@@ -91,9 +91,15 @@ public class Main {
             boolean status = cheatToggle.getText().contains("✗");
             cheatToggle.setText(status ? "<html><b>✓ <u>ON</b></u></html>" : "<html><b>✗ <u>OFF</b></u></html>");
             try {
+                while (patching) {
+                    //noinspection BusyWait
+                    //wait for ongoing shit to finish
+                    Thread.sleep(10);
+                }
                 ConsoleManager.patchCode(cheatName, status);
                 while (patching) {
                     //noinspection BusyWait
+                    //wait for ongoing shit to finish, then unpause
                     Thread.sleep(10);
                 }
                 ConsoleManager.sendToGdb("c");
@@ -244,6 +250,7 @@ public class Main {
                         selectedCheat = null;
                         codeText.setText("Select a patch!");
                         SaveManage.save();
+                        cheatListPane.repaint();
                     } catch (Exception ex) {
                         setLabel("Shit hit the fan!!");
                     }
