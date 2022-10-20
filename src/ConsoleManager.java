@@ -194,6 +194,7 @@ public class ConsoleManager {
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
+            if (splat3) Main.setWaitLabel = false;
         }).start();
     }
 
