@@ -101,6 +101,7 @@ public class ConsoleManager {
                     Main.frame.repaint();
                     Thread.sleep(20);
                     sendToGdb("c");
+                    Main.setWaitLabel = false;
                     continue;
                 }
                 if (waitingForCodeRead && readLine.contains(":\t")) {
@@ -109,6 +110,7 @@ public class ConsoleManager {
                     continue;
                 }
                 if (readLine.contains(" hit Breakpoint 1,")) {
+                    Main.setWaitLabel = true;
                     gameLoading();
                     continue;
                 }
@@ -131,7 +133,7 @@ public class ConsoleManager {
                         }
                     }
                     sendToGdb("c");
-
+                    Main.setWaitLabel = false;
                     continue;
                 }
                 if (readLine.endsWith("received signal SIGINT, Interrupt.")) {

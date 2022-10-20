@@ -13,6 +13,7 @@ public class Main {
     static Map<String, List<String[]>> codePatches;
     static String log;
     static String pid;
+    static boolean setWaitLabel;
     static boolean patching;
     static Map<String, Boolean> modState;
     static JFrame frame;
@@ -82,6 +83,10 @@ public class Main {
                 JOptionPane.showMessageDialog(null, "Patch does not exist. Did you save it?");
                 return;
             }
+            if (setWaitLabel) {
+                JOptionPane.showMessageDialog(null, "Wait a moment and try again");
+                return;
+            }
             boolean status = cheatToggle.getText().contains("✗");
             cheatToggle.setText(status ? "<html><b>✓ <u>ON</b></u></html>" : "<html><b>✗ <u>OFF</b></u></html>");
             try {
@@ -119,6 +124,7 @@ public class Main {
         modState = new HashMap<>();
         cheatBtns = new HashMap<>();
         cheatsRawText = new HashMap<>();
+        setWaitLabel = true;
         connectToConsole.addActionListener(actionEvent -> {
             consoleIP = JOptionPane.showInputDialog("Enter console IP address");
 
@@ -222,6 +228,11 @@ public class Main {
 
 
         deleteCheat.addActionListener(e -> {
+            if (setWaitLabel) {
+                JOptionPane.showMessageDialog(null, "Wait a moment and try again");
+                return;
+            }
+
             if (selectedCheat == null) {
                 JOptionPane.showMessageDialog(null, "Select a patch and try again");
                 return;
