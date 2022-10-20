@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@SuppressWarnings("ALL")
 public class ConsoleManager {
     static Map<String, String> originalCode;
     static boolean waitingForCodeRead;
@@ -16,6 +17,7 @@ public class ConsoleManager {
     static boolean loading;
     static boolean gameReady;
     static boolean notSplatoon;
+    static boolean splat3;
 
     static void startLooper() throws IOException, InterruptedException {
         ProcessBuilder processBuilder = new ProcessBuilder("gdb-multiarch");
@@ -48,6 +50,7 @@ public class ConsoleManager {
                 if (Main.nxConnected && !gameStarted && readLine.startsWith("Send `attach 0x")) {
                     //game found, try to attach
                     Main.setLabel("Injecting into game");
+                    //noinspection BusyWait
                     Thread.sleep(100);
                     gameStarted = true;
                     String attachCmd = readLine.replace("Send `", "");
@@ -71,14 +74,16 @@ public class ConsoleManager {
                     gotBaseOffset = true;
                     if (readLine.endsWith(" Blitz.nss") || readLine.endsWith(" Thunder.nss")) {
                         notSplatoon = false;
-                        boolean splat3 = readLine.endsWith(" Thunder.nss");
+                        splat3 = readLine.endsWith(" Thunder.nss");
                         Main.setLabel("Found Splatoon " + (splat3 ? "3" : "2") + " code base");
                         //place a breakpoint at the scene loader (when AC is called)
                         if (!splat3) sendToGdb("hbreak *(0x197F7EC + " + baseOffset + ")");
                         else {
-                            sendToGdb("hbreak *(0x04077854 + " + baseOffset + ")");
+                            //start anticheat
+                            sendToGdb("hbreak *(0x00EE6C5C + " + baseOffset + ")");
                             Thread.sleep(80);
-                            sendToGdb("hbreak *(0x02F23688 + " + baseOffset + ")");
+                            //end anticheat
+                            sendToGdb("hbreak *(0x00EE70C4 + " + baseOffset + ")");
                         }
                         SaveManage.filePath = "cheats" + (splat3 ? "Thunder" : "Blitz") + ".json";
 
@@ -108,8 +113,25 @@ public class ConsoleManager {
                     continue;
                 }
                 if (readLine.contains(" hit Breakpoint 2,")) {
-                    gameLoading();
-                    Main.setLabel("Match is starting!!");
+                    Main.setLabel("Anticheat done, enabling again");
+
+                    for (String cName : Main.patchesOn) {
+                        try {
+                            patchCode(cName, true);
+                            ((JButton) (Main.cheatBtns.get(cName).getComponent(1))).setText("<html><b>✗ <u>ON</b></u></html>");
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                        while (Main.patching) {
+                            try {
+                                Thread.sleep(10);
+                            } catch (InterruptedException e) {
+                                throw new RuntimeException(e);
+                            }
+                        }
+                    }
+                    sendToGdb("c");
+
                     continue;
                 }
                 if (readLine.endsWith("received signal SIGINT, Interrupt.")) {
@@ -186,11 +208,6 @@ public class ConsoleManager {
 
     static void sendToGdb(String s) throws IOException {
 
-        try {
-            // Thread.sleep(100);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
         // System.out.println("(gdb) " + s);
         Main.gdb.write((s + "\n").getBytes(StandardCharsets.US_ASCII));
         Main.gdb.flush();
